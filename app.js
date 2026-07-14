@@ -143,57 +143,67 @@ async function codigoDetectado(texto){
 function mostrarPantallaReposicion(datos){
 
     mostrarMensaje(
-
         "📚 Reposición",
-
         `
         <div class="nombreAlumno">
-
             ${datos.alumno}
-
         </div>
 
         <div class="grupoAlumno">
-
             ${datos.grupo}
-
         </div>
 
         <br>
 
         <label class="labelTeacher">
-
             👩‍🏫 Teacher
-
         </label>
 
         <br><br>
 
         <select id="teacherSelect">
-
-            <option ${datos.teacher=="Angel"?"selected":""}>Angel</option>
-
-            <option ${datos.teacher=="Chantal"?"selected":""}>Chantal</option>
-
-            <option ${datos.teacher=="Mariana"?"selected":""}>Mariana</option>
-
         </select>
 
         <br><br>
 
         <button id="btnEnviar">
-
             📨 Enviar solicitud
-
         </button>
-
         `
-
     );
 
+    // Cargar teachers automáticamente
+    google.script.run
+    .withSuccessHandler(function(lista){
+
+        const select =
+        document.getElementById("teacherSelect");
+
+        lista.forEach(function(nombre){
+
+            const option =
+            document.createElement("option");
+
+            option.value = nombre;
+            option.textContent = nombre;
+
+            if(nombre == datos.teacher){
+
+                option.selected = true;
+
+            }
+
+            select.appendChild(option);
+
+        });
+
+    })
+    .obtenerTeachers();
+
+    // Evento del botón
     document
-        .getElementById("btnEnviar")
-        .addEventListener("click", enviarSolicitud);
+    .getElementById("btnEnviar")
+    .addEventListener("click", enviarSolicitud);
 
 }
 // ==========================================
@@ -470,7 +480,7 @@ window.onload = () => {
                 "📚 Modo reposición",
                 "Escanea el alumno que tomará una clase de reposición."
             );
-
+            
         }else{
 
             btnReposicion.innerHTML =

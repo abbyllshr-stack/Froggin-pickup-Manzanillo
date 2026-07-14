@@ -292,34 +292,130 @@ async function cargarPendientes(){
 
         const alumnos = await respuesta.json();
 
-        const lista = document.getElementById("listaPendientes");
+        const lista =
+        document.getElementById("listaPendientes");
 
         if(!lista) return;
 
         lista.innerHTML = "";
 
-        if(alumnos.length === 0){
+        const pendientes =
+        alumnos.filter(a => a.estado == "Pendiente");
+
+        const entregados =
+        alumnos.filter(a => a.estado == "Entregado");
+
+        if(
+            pendientes.length == 0 &&
+            entregados.length == 0
+        ){
 
             lista.innerHTML =
-                "<p>🐸 No hay alumnos pendientes.</p>";
+                "<p>🐸 No hay alumnos.</p>";
 
             return;
 
         }
 
-        alumnos.forEach(alumno => {
+        // ==========================
+        // PENDIENTES
+        // ==========================
+
+        lista.innerHTML += `
+
+            <h3>
+                🟡 Pendientes (${pendientes.length})
+            </h3>
+
+        `;
+
+        if(pendientes.length){
+
+            pendientes.forEach(alumno => {
+
+                lista.innerHTML += `
+
+                    <div class="alumnoPendiente">
+
+                        <strong>
+
+                            ${alumno.alumno}
+
+                        </strong>
+
+                        <br>
+
+                        ${alumno.grupo}
+
+                        <br>
+
+                        👩‍🏫 ${alumno.teacher}
+
+                    </div>
+
+                `;
+
+            });
+
+        }else{
 
             lista.innerHTML += `
-                <div class="alumnoPendiente">
-
-                    <strong>${alumno.alumno}</strong><br>
-
-                    ${alumno.grupo}
-
-                </div>
+                <p>No hay pendientes.</p>
             `;
 
-        });
+        }
+
+        // ==========================
+        // ENTREGADOS
+        // ==========================
+
+        lista.innerHTML += `
+
+            <hr>
+
+            <h3>
+                ✅ Entregados (${entregados.length})
+            </h3>
+
+        `;
+
+        if(entregados.length){
+
+            entregados.forEach(alumno => {
+
+                lista.innerHTML += `
+
+                    <div
+                        class="alumnoPendiente"
+                        style="opacity:.55;">
+
+                        <strong>
+
+                            ${alumno.alumno}
+
+                        </strong>
+
+                        <br>
+
+                        ${alumno.grupo}
+
+                        <br>
+
+                        👩‍🏫 ${alumno.teacher}
+
+                    </div>
+
+                `;
+
+            });
+
+        }else{
+
+            lista.innerHTML += `
+                <p>No hay entregados.</p>
+            `;
+
+        }
 
     }catch(error){
 
@@ -328,7 +424,6 @@ async function cargarPendientes(){
     }
 
 }
-
 // ==========================================
 // INTERFAZ
 // ==========================================

@@ -173,32 +173,11 @@ function mostrarPantallaReposicion(datos){
     );
 
     // Cargar teachers automáticamente
-    google.script.run
-    .withSuccessHandler(function(lista){
+   const respuesta = await fetch(
+    API_URL + "?action=teachers"
+);
 
-        const select =
-        document.getElementById("teacherSelect");
-
-        lista.forEach(function(nombre){
-
-            const option =
-            document.createElement("option");
-
-            option.value = nombre;
-            option.textContent = nombre;
-
-            if(nombre == datos.teacher){
-
-                option.selected = true;
-
-            }
-
-            select.appendChild(option);
-
-        });
-
-    })
-    .obtenerTeachers();
+const lista = await respuesta.json();
 
     // Evento del botón
     document

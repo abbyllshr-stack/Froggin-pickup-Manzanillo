@@ -172,34 +172,55 @@ async function mostrarPantallaReposicion(datos){
         `
     );
 
-   // Cargar teachers automáticamente
-const respuesta = await fetch(
-    API_URL + "?action=teachers"
-);
+    // ==========================
+    // Cargar teachers
+    // ==========================
 
-const lista = await respuesta.json();
+    const respuesta = await fetch(
+        API_URL + "?action=teachers"
+    );
 
-const select = document.getElementById("teacherSelect");
+    const lista = await respuesta.json();
 
-// Limpiar opciones
-select.innerHTML = "";
+    const select =
+        document.getElementById("teacherSelect");
 
-// Agregar teachers al select
-lista.forEach(teacher => {
+    // Limpiar opciones anteriores
+    select.innerHTML = "";
 
-    const option = document.createElement("option");
+    // Opción inicial
+    const opcionInicial =
+        document.createElement("option");
 
-    option.value = teacher;
-    option.textContent = teacher;
+    opcionInicial.value = "";
+    opcionInicial.textContent = "Select a teacher";
+    opcionInicial.disabled = true;
+    opcionInicial.selected = true;
 
-    select.appendChild(option);
+    select.appendChild(opcionInicial);
 
-});
+    // Agregar teachers
+    lista.forEach(teacher => {
 
-// Evento del botón
-document
-    .getElementById("btnEnviar")
-    .addEventListener("click", enviarSolicitud);
+        const option =
+            document.createElement("option");
+
+        option.value = teacher;
+        option.textContent = teacher;
+
+        select.appendChild(option);
+
+    });
+
+    // Evento del botón
+    document
+        .getElementById("btnEnviar")
+        .addEventListener(
+            "click",
+            enviarSolicitud
+        );
+
+}
 // ==========================================
 // ENVÍO AUTOMÁTICO
 // ==========================================

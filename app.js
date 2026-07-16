@@ -172,19 +172,34 @@ async function mostrarPantallaReposicion(datos){
         `
     );
 
-    // Cargar teachers automáticamente
-   const respuesta = await fetch(
+   // Cargar teachers automáticamente
+const respuesta = await fetch(
     API_URL + "?action=teachers"
 );
 
 const lista = await respuesta.json();
 
-    // Evento del botón
-    document
+const select = document.getElementById("teacherSelect");
+
+// Limpiar opciones
+select.innerHTML = "";
+
+// Agregar teachers al select
+lista.forEach(teacher => {
+
+    const option = document.createElement("option");
+
+    option.value = teacher;
+    option.textContent = teacher;
+
+    select.appendChild(option);
+
+});
+
+// Evento del botón
+document
     .getElementById("btnEnviar")
     .addEventListener("click", enviarSolicitud);
-
-}
 // ==========================================
 // ENVÍO AUTOMÁTICO
 // ==========================================

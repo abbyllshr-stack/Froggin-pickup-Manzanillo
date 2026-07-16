@@ -140,7 +140,7 @@ async function codigoDetectado(texto){
 // PANTALLA REPOSICIÓN
 // ==========================================
 
-function mostrarPantallaReposicion(datos){
+async function mostrarPantallaReposicion(datos){
 
     mostrarMensaje(
         "📚 Reposición",

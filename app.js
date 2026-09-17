@@ -17,6 +17,37 @@ let alumnoActual = "";
 let modoReposicion = false;
 
 // ==========================================
+// CACHE DE TEACHERS
+// ==========================================
+
+let teachersCache = null;
+
+
+// ==========================================
+// CARGAR TEACHERS
+// ==========================================
+
+async function cargarTeachers(){
+
+    // Si ya están cargados,
+    // devolver la lista guardada
+    if(teachersCache){
+
+        return teachersCache;
+
+    }
+
+    const respuesta = await fetch(
+        API_URL + "?action=teachers"
+    );
+
+    teachersCache = await respuesta.json();
+
+    return teachersCache;
+
+}
+
+// ==========================================
 // CÁMARA
 // ==========================================
 
@@ -84,7 +115,7 @@ async function codigoDetectado(texto){
     alumnoActual = texto;
 
     mostrarMensaje(
-        "🔍 Buscando alumno...",
+        "🔍 Buscando...",
         ""
     );
 
@@ -99,26 +130,206 @@ async function codigoDetectado(texto){
 
         const datos = await respuesta.json();
 
-        if(datos.encontrado){
+        // ==========================
+        // NO ENCONTRADO
+        // ==========================
 
-            if(modoReposicion){
-
-                mostrarPantallaReposicion(datos);
-
-            }else{
-
-                enviarSolicitudAutomatica(datos);
-
-            }
-
-        }else{
+        if(!datos.encontrado){
 
             mostrarMensaje(
-                "❌ Alumno no encontrado",
+                "❌ Código no encontrado",
                 ""
             );
 
             procesando = false;
+
+            return;
+
+        }
+
+
+        // ==========================
+        // ES TEACHER
+        // ==========================
+
+        if(datos.tipo == "teacher"){
+
+            mostrarPantallaTeacher(datos);
+
+            procesando = false;
+
+            return;
+
+        }
+
+// ==========================
+// ES ALUMNO
+// ==========================
+
+console.log("DATOS DEL ALUMNO:", datos);
+console.log("DATOS DEL ALUMNO:", datos);
+
+console.log(
+    "CLASE HOY:",
+    datos.claseHoy,
+    typeof datos.claseHoy
+);
+
+console.log(
+    "FRECUENCIA:",
+    datos.frecuencia
+);
+
+if(datos.claseHoy === true){
+
+    // 🟢 Hoy le corresponde su clase normal
+    await enviarSolicitudAutomatica(datos);
+
+}else if(datos.claseHoy === false){
+
+    // 📚 Hoy no le corresponde clase:
+    // se detecta automáticamente como reposición
+    await mostrarPantallaReposicion(datos);
+
+}else{
+
+    mostrarMensaje(
+        "❌ Error de frecuencia",
+        "No se pudo determinar si el alumno tiene clase hoy."
+    );
+
+    console.log("Valor recibido:", datos.claseHoy);
+    console.log("Datos completos:", datos);
+
+    procesando = false;
+
+}
+
+}catch(error){
+
+    console.error("ERROR COMPLETO:", error);
+
+    mostrarMensaje(
+        "❌ Error",
+        error.message || String(error)
+    );
+
+    procesando = false;
+
+}
+
+}
+// ============================
+// MOSTRAR PANTALLA TEACHER
+// ============================
+
+function mostrarPantallaTeacher(datos){
+
+    const resultado =
+        document.getElementById("resultado");
+
+    resultado.innerHTML = `
+
+        <h2>👩‍🏫 ${datos.nombre}</h2>
+
+        <p>
+            Select working hours
+        </p>
+
+        <select id="horasTeacher">
+
+            <option value="">
+                Select hours
+            </option>
+
+            <option value="1">1 hour</option>
+
+            <option value="2">2 hours</option>
+
+            <option value="4">4 hours</option>
+
+
+        </select>
+
+        <br><br>
+
+        <button
+            id="btnRegistrarTeacher"
+            onclick="registrarTeacher('${datos.id}')">
+
+            ✅ Register teacher
+
+        </button>
+
+    `;
+
+}
+// ============================
+// REGISTRAR TEACHER
+// ============================
+
+async function registrarTeacher(id){
+
+    const selectHoras =
+        document.getElementById("horasTeacher");
+
+    const horas =
+        selectHoras.value;
+
+    // ==========================
+    // VALIDAR HORAS
+    // ==========================
+
+    if(!horas){
+
+        alert(
+            "Please select working hours."
+        );
+
+        return;
+
+    }
+
+    try{
+
+        mostrarMensaje(
+            "⏳ Registering teacher...",
+            ""
+        );
+
+        const url =
+            API_URL +
+            "?action=registrarTeacher" +
+            "&id=" +
+            encodeURIComponent(id) +
+            "&horas=" +
+            encodeURIComponent(horas);
+
+        const respuesta =
+            await fetch(url);
+
+        const resultado =
+            await respuesta.json();
+
+        console.log(resultado);
+
+        // ==========================
+        // REGISTRO EXITOSO
+        // ==========================
+
+        if(resultado.exito){
+
+            mostrarMensaje(
+                resultado.mensaje,
+                ""
+            );
+
+        }else{
+
+            mostrarMensaje(
+                "❌ Could not register teacher",
+                resultado.mensaje || ""
+            );
 
         }
 
@@ -127,13 +338,14 @@ async function codigoDetectado(texto){
         console.error(error);
 
         mostrarMensaje(
-            "❌ Error",
-            error
+            "❌ Error registering teacher",
+            ""
         );
 
-        procesando = false;
-
     }
+
+    // Permitir volver a escanear
+    procesando = false;
 
 }
 // ==========================================
@@ -173,14 +385,10 @@ async function mostrarPantallaReposicion(datos){
     );
 
     // ==========================
-    // Cargar teachers
+    // OBTENER TEACHERS DEL CACHE
     // ==========================
 
-    const respuesta = await fetch(
-        API_URL + "?action=teachers"
-    );
-
-    const lista = await respuesta.json();
+    const lista = await cargarTeachers();
 
     const select =
         document.getElementById("teacherSelect");
@@ -476,42 +684,17 @@ window.onload = () => {
         CONFIG.REFRESH_TIME
     );
 
-    const btnReposicion =
-        document.getElementById("btnReposicion");
+    // ==========================
+    // BOTÓN HISTORIAL
+    // ==========================
 
-    btnReposicion.addEventListener("click", function(){
+    const btnHistorial =
+        document.getElementById("btnHistorial");
 
-        modoReposicion = !modoReposicion;
-
-        if(modoReposicion){
-
-            btnReposicion.innerHTML =
-                "❌ Cancelar reposición";
-
-            btnReposicion.style.background =
-                "#E53935";
-
-            mostrarMensaje(
-                "📚 Modo reposición",
-                "Escanea el alumno que tomará una clase de reposición."
-            );
-            
-        }else{
-
-            btnReposicion.innerHTML =
-                "📚 Reposición";
-
-            btnReposicion.style.background =
-                "#FF9800";
-
-            mostrarMensaje(
-                "🟢 Listo para escanear",
-                ""
-            );
-
-        }
-
-    });
+    btnHistorial.addEventListener(
+        "click",
+        mostrarPantallaHistorial
+    );
 
 };
 // ==========================================
@@ -590,5 +773,525 @@ async function enviarSolicitud(){
         procesando = false;
 
     }
+
+}
+// ==========================================
+// PRECARGAR TEACHERS
+// ==========================================
+
+cargarTeachers()
+    .then(() => {
+
+        console.log(
+            "✅ Teachers cargados correctamente"
+        );
+
+    })
+    .catch(error => {
+
+        console.error(
+            "❌ Error cargando teachers:",
+            error
+        );
+
+    });
+// ==========================================
+// PANTALLA HISTORIAL
+// ==========================================
+
+// ==========================================
+// PANTALLA HISTORIAL
+// ==========================================
+
+// ==========================================
+// VOLVER AL INICIO
+// ==========================================
+
+function volver(){
+
+    // Permitir escanear nuevamente
+    procesando = false;
+
+    // Limpiar alumno actual
+    alumnoActual = "";
+
+    // Regresar mensaje inicial
+    mostrarMensaje(
+        "🟢 Listo para escanear",
+        ""
+    );
+
+}
+
+function mostrarPantallaHistorial(){
+
+    const resultado =
+        document.getElementById("resultado");
+
+    resultado.innerHTML = `
+
+        <h2>📊 Attendance History</h2>
+
+        <label>
+            👤 Student
+        </label>
+
+        <br><br>
+
+        <select id="filtroAlumno">
+
+            <option value="">
+                All students
+            </option>
+
+        </select>
+
+        <br><br>
+
+
+        <label>
+            👥 Group
+        </label>
+
+        <br><br>
+
+        <select id="filtroGrupo">
+
+            <option value="">
+                All groups
+            </option>
+
+        </select>
+
+        <br><br>
+
+
+        <label>
+            📅 Month
+        </label>
+
+        <br><br>
+
+        <select id="filtroMes">
+
+            <option value="">
+                All months
+            </option>
+
+            <option value="ENERO">January</option>
+            <option value="FEBRERO">February</option>
+            <option value="MARZO">March</option>
+            <option value="ABRIL">April</option>
+            <option value="MAYO">May</option>
+            <option value="JUNIO">June</option>
+            <option value="JULIO">July</option>
+            <option value="AGOSTO">August</option>
+            <option value="SEPTIEMBRE">September</option>
+            <option value="OCTUBRE">October</option>
+            <option value="NOVIEMBRE">November</option>
+            <option value="DICIEMBRE">December</option>
+
+        </select>
+
+        <br><br>
+
+
+        <label>
+            🗓️ Specific date
+        </label>
+
+        <br><br>
+
+        <input
+            type="date"
+            id="filtroFecha"
+        >
+
+        <br><br>
+
+
+        <button id="btnBuscarHistorial">
+
+            🔍 Search
+
+        </button>
+
+        <br><br>
+
+        <button id="btnCerrarHistorial">
+
+    ✕ Close
+
+</button>
+
+    `;
+
+
+    // CARGAR LAS LISTAS
+    cargarAlumnosHistorial();
+    cargarGruposHistorial();
+
+
+    // BOTÓN SEARCH
+    document
+        .getElementById("btnBuscarHistorial")
+        .addEventListener(
+            "click",
+            buscarHistorial
+        );
+
+
+    // BOTÓN CLOSE
+    document
+    .getElementById("btnCerrarHistorial")
+    .addEventListener(
+        "click",
+        cerrarHistorial
+    );
+
+}
+// ==========================================
+// CARGAR ALUMNOS PARA HISTORIAL
+// ==========================================
+
+async function cargarAlumnosHistorial(){
+
+    try{
+
+        const respuesta =
+            await fetch(
+                API_URL + "?action=alumnos"
+            );
+
+        const alumnos =
+            await respuesta.json();
+
+        const select =
+            document.getElementById(
+                "filtroAlumno"
+            );
+
+        alumnos.forEach(alumno => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = alumno;
+            option.textContent = alumno;
+
+            select.appendChild(option);
+
+        });
+
+    }catch(error){
+
+        console.error(
+            "Error cargando alumnos:",
+            error
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// CARGAR GRUPOS PARA HISTORIAL
+// ==========================================
+
+async function cargarGruposHistorial(){
+
+    try{
+
+        const respuesta =
+            await fetch(
+                API_URL + "?action=grupos"
+            );
+
+        const grupos =
+            await respuesta.json();
+
+        const select =
+            document.getElementById(
+                "filtroGrupo"
+            );
+
+        grupos.forEach(grupo => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = grupo;
+            option.textContent = grupo;
+
+            select.appendChild(option);
+
+        });
+
+    }catch(error){
+
+        console.error(
+            "Error cargando grupos:",
+            error
+        );
+
+    }
+
+}
+
+// ==========================================
+// BUSCAR HISTORIAL
+// ==========================================
+
+async function buscarHistorial(){
+
+    // ==========================
+    // OBTENER FILTROS
+    // ==========================
+
+    const alumno =
+        document.getElementById("filtroAlumno").value;
+
+    const grupo =
+        document.getElementById("filtroGrupo").value;
+
+    const mes =
+        document.getElementById("filtroMes").value;
+
+    const fecha =
+        document.getElementById("filtroFecha").value;
+
+
+    // ==========================
+    // MOSTRAR CARGANDO
+    // ==========================
+
+    const boton =
+        document.getElementById(
+            "btnBuscarHistorial"
+        );
+
+    boton.textContent = "⏳ Searching...";
+
+    boton.disabled = true;
+
+
+    try{
+
+        // ==========================
+        // CONSTRUIR URL
+        // ==========================
+
+        let url =
+            API_URL +
+            "?action=historial";
+
+
+        if(alumno){
+
+            url +=
+                "&alumno=" +
+                encodeURIComponent(alumno);
+
+        }
+
+
+        if(grupo){
+
+            url +=
+                "&grupo=" +
+                encodeURIComponent(grupo);
+
+        }
+
+
+        if(mes){
+
+            url +=
+                "&mes=" +
+                encodeURIComponent(mes);
+
+        }
+
+
+        if(fecha){
+
+            url +=
+                "&fecha=" +
+                encodeURIComponent(fecha);
+
+        }
+
+
+        // ==========================
+        // CONSULTAR BACKEND
+        // ==========================
+
+        const respuesta =
+            await fetch(url);
+
+        const datos =
+            await respuesta.json();
+
+
+        console.log(
+            "HISTORIAL:",
+            datos
+        );
+
+
+        // ==========================
+        // MOSTRAR RESULTADOS
+        // ==========================
+
+        mostrarResultadosHistorial(
+            datos
+        );
+
+
+    }catch(error){
+
+        console.error(error);
+
+        alert(
+            "Error searching attendance history."
+        );
+
+        boton.textContent =
+            "🔍 Search";
+
+        boton.disabled = false;
+
+    }
+
+}
+// ==========================================
+// MOSTRAR RESULTADOS HISTORIAL
+// ==========================================
+
+function mostrarResultadosHistorial(datos){
+
+    const resultado =
+        document.getElementById("resultado");
+
+
+    // ==========================
+    // VALIDAR RESULTADOS
+    // ==========================
+
+    if(
+        !datos.exito ||
+        !datos.resultados ||
+        datos.resultados.length === 0
+    ){
+
+        resultado.innerHTML = `
+
+            <h2>
+                📊 Attendance History
+            </h2>
+
+            <p>
+                No attendance records found.
+            </p>
+
+            <br>
+
+            <button
+                onclick="mostrarPantallaHistorial()">
+
+                ← Back to filters
+
+            </button>
+
+        `;
+
+        return;
+
+    }
+
+
+    // ==========================
+    // CREAR LISTA
+    // ==========================
+
+    let html = `
+
+        <h2>
+            📊 Results
+        </h2>
+
+        <p>
+            Records found: ${datos.total}
+        </p>
+
+        <hr>
+
+    `;
+
+
+    datos.resultados.forEach(registro => {
+
+        html += `
+
+            <div class="registroHistorial">
+
+                <strong>
+                    ${registro.simbolo}
+                    ${registro.alumno}
+                </strong>
+
+                <br>
+
+                👥 ${registro.grupo}
+
+                <br>
+
+                📅 ${registro.fecha}
+
+                <br>
+
+                ${registro.estado}
+
+            </div>
+
+            <hr>
+
+        `;
+
+    });
+
+
+    // ==========================
+    // BOTÓN VOLVER
+    // ==========================
+
+    html += `
+
+        <button
+            onclick="mostrarPantallaHistorial()">
+
+            ← Back to filters
+
+        </button>
+
+    `;
+
+
+    resultado.innerHTML = html;
+
+}
+// ==========================================
+// CERRAR HISTORIAL
+// ==========================================
+
+function cerrarHistorial(){
+
+    mostrarMensaje(
+        "🟢 Listo para escanear",
+        ""
+    );
+
+    procesando = false;
 
 }
